@@ -1,0 +1,13 @@
+###
+
+POST http://localhost:3002/api/test
+Content-Type: application/json
+
+{
+    "title": "foo",
+    "body": "bar",
+    "userId": 5,
+    "divakar":"cors"
+}
+
+###
