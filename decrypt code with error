@@ -1,0 +1,73 @@
+const { JWK } = require('node-jose');
+const { JWE } = require('node-jose');
+const fs = require('fs');
+const cors = require('cors');
+const express = require('express');
+const bodyParser = require('body-parser');
+// Create an instance of express
+const app = express();
+app.use(express.json());
+
+// Use cors middleware to allow requests from all origins (default)
+app.use(cors());
+
+app.use(bodyParser.json());
+// Set the port for the server
+const PORT = process.env.PORT || 3002;
+// Load the private key (for decryption) from the PEM file
+const privateKeyPem = fs.readFileSync("keys/encpriv.pem", "utf8");
+ 
+app.post('/api/decrypt-request', express.json(), async (req, res) => {
+  const encryptedRequest = req.body.Res_Data;
+ 
+  if (!encryptedRequest) {
+    return res.status(400).send('Invalid request: Encrypted data is required');
+  }
+ 
+  try {
+    // Create a JWK (JSON Web Key) from the private key
+    const keyStore = JWK.createKeyStore();
+    const privateKey = await keyStore.add(privateKeyPem, 'pem');
+ 
+    // Parse the JWE object
+    const jweObject = await JWE.createDecrypt(privateKey).decrypt(encryptedRequest);
+ 
+    // Extract the protected headers
+    const jweHeaders = jweObject.header;
+    console.log('JWE Headers:', jweHeaders);
+ 
+    // Validate the headers
+    if (jweHeaders.enc !== 'A256GCM' || jweHeaders.alg !== 'RSA-OAEP-256') {
+      return res.status(400).send('JWE JOSE headers are invalid');
+    }
+ 
+    // Decrypt the payload
+    const decryptedPayload = jweObject.plaintext.toString('utf8');
+    console.log('Decrypted Payload:', decryptedPayload);
+ 
+    // Send the decrypted payload as the response
+    res.json({ decryptedPayload });
+  } catch (error) {
+    console.error('Error during decryption:', error);
+    res.status(500).send('Request Decryption failed: ' + error.message);
+  }
+});
+
+// Start the server
+//app.listen(3000, '0.0.0.0', () => console.log("Server running on all interfaces"));
+app.listen(PORT, () => {
+    console.log(`Server is running on PORT no:${PORT}`);
+  });
+
+
+Error during decryption: Error: supported PEM type not found
+    at fromPEM (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\node-jose\lib\jwk\keystore.js:112:11)
+    at JWKStore.value (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\node-jose\lib\jwk\keystore.js:296:25)
+    at C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\decrypt.js:30:39
+    at Layer.handle [as handle_request] (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\express\lib\router\route.js:149:13)
+    at jsonParser (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\body-parser\lib\types\json.js:104:7)
+    at Layer.handle [as handle_request] (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\Level2\LockerTransactionBackendApi\locker_backend_APIs\node_modules\express\lib\router\layer.js:95:5)
